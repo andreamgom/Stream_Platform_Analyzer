@@ -1,0 +1,615 @@
+---
+title: "TFC"
+author: "Andrea Mayor Gómez"
+date: "2024-02-23"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+
+```{r,echo=FALSE}
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  echo=TRUE
+)
+```
+
+#  Análisis en términos de Popularidad y Géneros Preferidos de Netflix, HBO y Amazon Prime
+
+## Estado Actual y Objetivos
+El proyecto se centra en el análisis comparativo del contenido ofrecido por las plataformas de streaming Netflix, HBO y Amazon Prime. La motivación detrás de este proyecto radica en entender las tendencias del contenido audiovisual, cómo estas plataformas están compitiendo en el mercado y cómo sus ofertas afectan a los consumidores. Los objetivos principales son identificar patrones en el contenido ofrecido, comparar la popularidad y la calidad del contenido entre plataformas, y proporcionar una visión general de las preferencias de los espectadores en cuanto a géneros, duración y calificación por edades.
+
+## Aportaciones
+Este proyecto aporta una comprensión más profunda del mercado de streaming y del comportamiento de los consumidores en relación con el contenido audiovisual. Además, proporciona información valiosa para las plataformas de streaming y los productores de contenido sobre las preferencias de los espectadores, lo que les permite tomar decisiones más informadas sobre la creación y adquisición de contenido. Desde el punto de vista técnico, este proyecto demuestra la aplicación de herramientas de análisis de datos y visualización para abordar problemas del mundo real en el campo del entretenimiento digital.
+
+## Desarrollo
+
+### Fuentes de los datos utilizados y análisis de su fiabilidad
+
+Los datos utilizados provienen de archivos CSV que contienen información sobre películas y series disponibles en Netflix, HBO y Amazon Prime. Si bien los datos pueden ser limitados en ciertos aspectos, como la falta de información sobre todas las películas y series disponibles en las plataformas, se consideran lo suficientemente representativos para realizar un análisis exploratorio inicial.
+
+
+#### Primer conjunto de datos
+
+**- Nombre oficial:** Netﬂix TV Shows and Movies
+
+**- Fuente:** kaggle.com
+
+**- URL descarga:** https://www.kaggle.com/datasets/victorsoeiro/netflix-tv-shows-and-movies?select=titles.csv
+
+**-	Descripción (número de observaciones, número de variables, formato de los ﬁcheros, …):** El ﬁchero que se ha seleccionado y su formato es el nombrado como title.csv, tiene un total de 15 columnas y más de 5 mil ﬁlas, que en este caso equivalen a las distintas series y películas de Netﬂix.
+
+
+#### Segundo conjunto de datos
+
+**- Nombre oficial:** HBO MAX TV Shows and Movies.
+
+**- Fuente:** kaggle.com
+
+**- URL descarga:** https://www.kaggle.com/datasets/victorsoeiro/hbo-max-tv-shows-and-movies
+
+**-	Descripción (número de observaciones, número de variables, formato de los ﬁcheros, …):** El ﬁchero que se ha seleccionado y su formato es el nombrado como title.csv, tiene un total de 15 columnas y más de 5 mil ﬁlas, que en este caso son distintas series y películas de HBO Max.
+
+
+#### Tercer conjunto de datos
+
+**- Nombre oficial:** Amazon Prime TV Shows and Movies.
+
+**- Fuente:** kaggle.com
+
+**- URL descarga:** https://www.kaggle.com/datasets/victorsoeiro/amazon-prime-tv-shows-and-movies
+
+**-	Descripción (número de observaciones, número de variables, formato de los ﬁcheros, …):** El ﬁchero que se ha seleccionado y su formato es el nombrado como title.csv, tiene un total de 15 columnas y más de 5 mil ﬁlas, que en este caso son distintas series y películas de Amazon Prime.
+
+
+### Análisis exploratorio inicial de los datos
+Se ha realizado un análisis exploratorio inicial para comprender la distribución de la popularidad del contenido por año y la frecuencia de diferentes géneros en cada plataforma. Se han identificado algunas limitaciones en la organización de los datos, como la falta de consistencia en la clasificación por edades y la presencia de géneros poco comunes.
+
+
+### Identificación de requisitos de procesado de datos
+Para el proyecto, se requiere la combinación de datos de múltiples fuentes y el procesamiento de información para extraer insights relevantes sobre el contenido ofrecido por cada plataforma.
+
+
+### Selección y aplicación de herramientas de análisis
+Se han utilizado diversas herramientas de análisis de datos y visualización, como ggplot2, plotly y wordcloud2, para explorar y presentar los datos de manera efectiva.
+
+
+### Elaboración de un cuadro de mandos
+
+Se ha elaborado un cuadro de mandos interactivo que permite visualizar la popularidad del contenido por año en cada plataforma y comparar la duración de las películas ofrecidas por cada una.
+
+http://10.22.143.222:3838/sample-apps/a2433/DashboardTFC.Rmd
+
+
+
+## Conclusiones y Trabajos Futuros
+Se han identificado patrones interesantes en el contenido ofrecido por Netflix, HBO y Amazon Prime, así como diferencias en la popularidad y la calidad del contenido.
+Se ha demostrado la viabilidad de utilizar herramientas de análisis de datos para comprender mejor el mercado de streaming y las preferencias de los espectadores.
+Como trabajo futuro, se podrían explorar técnicas más avanzadas de análisis de datos, como el procesamiento del lenguaje natural para analizar las descripciones del contenido, o la aplicación de modelos predictivos para predecir tendencias futuras en el mercado de streaming. Además, se podría considerar la incorporación de datos adicionales, como reseñas de usuarios o datos demográficos, para obtener una imagen más completa del comportamiento de los consumidores.
+
+
+
+## Representaciones
+
+```{r, message = FALSE,warning = FALSE, echo=FALSE}
+if (!require(wordcloud2)) install.packages('wordcloud2')
+if (!require(viridis)) install.packages('viridis') 
+
+library(wordcloud2)
+library(dplyr)
+library(plotly)
+library(ggplot2)      
+library(viridis)      
+library(tidyverse)
+library(gganimate)
+library(animation)
+library(highcharter)
+
+```
+
+```{r, echo=FALSE}
+netflix <- read.csv("datos/netflix.csv")
+hbo <- read.csv("datos/hbo.csv")
+amazon <- read.csv("datos/amazon.csv")
+```
+
+
+```{r, echo=FALSE}
+netflix$platform = "Netflix"
+hbo$platform = "HBO"
+amazon$platform = "Amazon Prime"
+
+all_platforms <- rbind(netflix, hbo, amazon)
+all_movies <- subset(all_platforms, type == "MOVIE")
+all_shows <- subset(all_platforms, type == "SHOW")
+
+comedy_movies_series <- all_platforms[grepl("comedy", all_platforms$genres, ignore.case = TRUE), ]
+comedy_movies <- comedy_movies_series %>%
+  filter(type == "MOVIE")
+comedy_series <- comedy_movies_series %>%
+  filter(type == "SHOW")
+```
+
+
+
+### Primera gráfica
+
+```{r, echo=FALSE}
+netflix_popularity_by_year <- netflix %>%
+  group_by(release_year) %>%
+  summarise(avg_popularity = mean(na.omit(tmdb_popularity))) %>%
+  filter(avg_popularity > 0)
+
+hbo_popularity_by_year <- hbo %>%
+  group_by(release_year) %>%
+  summarise(avg_popularity = mean(na.omit(tmdb_popularity))) %>%
+  filter(avg_popularity > 0)
+
+amazon_popularity_by_year <- amazon %>%
+  group_by(release_year) %>%
+  summarise(avg_popularity = mean(na.omit(tmdb_popularity))) %>%
+  filter(avg_popularity > 0)
+
+```
+
+
+
+```{r, fig.width= 15, fig.height=5, warning=FALSE, echo=FALSE}
+p <- ggplot() +
+  geom_line(data = netflix_popularity_by_year, aes(x = release_year, y = avg_popularity, color = "Netflix"), size = 1) +
+  geom_line(data = hbo_popularity_by_year, aes(x = release_year, y = avg_popularity, color = "HBO"), size = 1) +
+  geom_line(data = amazon_popularity_by_year, aes(x = release_year, y = avg_popularity, color = "Amazon Prime"), size = 1) +
+  theme_minimal() +
+  labs(title = "Distribución de la popularidad del contenido de cada plataforma por año", x = "Año", y = "Popularidad promedio", color = "Plataforma") +
+  scale_x_continuous(breaks = seq(1900, 2025, 5), limits = c(1900, 2025)) +
+  scale_color_manual(values = c("Netflix" = "#db1120", "HBO" = "#652bb9", "Amazon Prime" = "#1a98ff")) +
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.5, vjust = 2))
+
+ggplotly(p)
+
+```
+
+**- Conclusiones**
+
+El gráfico muestra la “Distribución de la popularidad del contenido de cada plataforma por año” desde 1900 hasta aproximadamente 2025. Tres plataformas están representadas: Netflix (en azul), HBO (en rojo) y Amazon Prime (en morado). La popularidad está medida en una escala del 0 al 100 en el eje Y. Netflix muestra un aumento significativo en la popularidad después de 2015, alcanzando cerca del valor máximo de 100. HBO tiene varios picos notables a lo largo del tiempo pero experimenta un pico significativo alrededor de 2015 antes de disminuir. Amazon Prime tiene una línea más suave y constante que indica una popularidad relativamente baja a lo largo del tiempo.
+
+
+
+### Segunda gráfica
+
+```{r, echo=FALSE}
+
+all_platforms %>%
+  select(-id, -title, -type, -description, -release_year, -age_certification, -genres, -production_countries, -seasons, -imdb_id, -platform) %>%
+  cor(use = 'complete.obs') %>%
+  hchart() %>%
+  hc_title(text = "Matriz de correlación", size = 12, face = "bold", hjust = 0.5, vjust = 2)
+
+```
+
+
+**- Conclusiones**
+
+Imdb_score e Imdb_votes: Existe una correlación positiva moderada entre la puntuación de IMDb (imdb_score) y el número de votos en IMDb (imdb_votes). Esto sugiere que las películas con una puntuación más alta tienden a recibir más votos.
+Tmdb_popularity y Tmdb_score: La popularidad en TMDb (tmdb_popularity) tiene una correlación negativa leve con la puntuación en TMDb (tmdb_score). Esto podría indicar que las películas muy populares según TMDb no siempre tienen una alta puntuación.
+Otras combinaciones de variables: Las demás combinaciones de variables muestran poca o ninguna correlación significativa. Esto significa que las variables como la duración (runtime) no están fuertemente relacionadas con las puntuaciones o la popularidad.
+
+### Tercera gráfica
+
+```{r, echo=FALSE}
+# Contar el número de títulos para cada género y plataforma, pero solo para los géneros comunes en los tres datasets
+common_genres <- intersect(unique(hbo$genres), intersect(unique(amazon$genres), unique(netflix$genres)))
+
+# Filtrar los datos para incluir solo los géneros comunes
+filtered_data <- all_platforms %>%
+  separate_rows(genres, sep = ", ") %>%
+  filter(genres %in% common_genres) %>%
+  group_by(platform, genres) %>%
+  summarize(count = n())
+
+# Calcular la media del número de títulos por género y plataforma
+mean_data <- filtered_data %>%
+  group_by(platform, genres) %>%
+  summarize(mean_count = mean(count)) %>%
+  ungroup()
+
+# Ordenar los géneros por media del número de títulos descendente en Amazon Prime
+amazon_data <- mean_data %>%
+  filter(platform == "Amazon Prime") %>%
+  mutate(genres = fct_reorder(genres, mean_count))
+
+# Eliminar corchetes y comillas de los nombres de género
+mean_data$genres <- str_replace_all(mean_data$genres, c("\\[|\\]" = "", "'" = ""))
+
+# Eliminar la lista vacía
+mean_data <- mean_data %>% filter(genres != "")
+
+mean_data$genres <- factor(mean_data$genres, levels = mean_data$genres[order(mean_data$mean_count[mean_data$platform == "Amazon Prime"], decreasing = TRUE)])
+```
+
+
+```{r, fig.width= 10, fig.height=5, warning=FALSE, echo=FALSE}
+generos <- ggplot(mean_data, aes(x = genres, y = mean_count, fill = platform)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c("#1a98ff", "#652bb9", "#db1120")) +
+  theme_minimal() +
+  labs(title = "Top géneros por plataforma", x = "Género", y = "Número de títulos") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.5, vjust = 2))
+
+ggplotly(generos)
+```
+
+
+**- Conclusiones**
+
+El gráfico muestra la distribución de diferentes géneros de películas o series disponibles en Amazon Prime, HBO y Netflix.
+
+En cuanto a Amazon Prime, podemos observar que su presencia es notable en las 10 categorías mostradas en el gráfico liderando en la mayoría de estos. Donde más destaca su presencia es en los géneros de drama, comedia, documental y horror.
+
+En HBO donde más destaca es en la categoría de documental pero no por encima de Amazon Prime. En drama y comedia tmb tiene una cantidad considerable de contenido. Y donde menos presencia tiene es en la categoría de familia y guerra.
+
+Netflix tiene una cantidad considerable de contendio en el género de comedia, seguida de de documental y drama y destaca de entre las otras dos en la categoría de reality. T
+
+
+### Cuarta gráfica
+
+```{r, echo=FALSE}
+top_movies <- comedy_movies %>% 
+  arrange(desc(imdb_score)) %>% 
+  slice(1:100)  # Filtrar las 100 películas con mayor puntuación
+
+```
+
+
+```{r, fig.width= 10, fig.height=8, warning=FALSE, echo=FALSE}
+
+ages <- top_movies %>% 
+  ggplot( aes(x = age_certification, fill = platform)) +
+  geom_bar(position = "dodge", width = 0.7) +  # Utiliza position = "dodge" y ajusta el ancho de las barras
+  labs(title = "Películas exitosas por clasificación por edades y plataforma",
+       x = "Clasificación por edades",
+       y = "Cantidad de películas") +
+  scale_fill_manual(values = c("Netflix" = "#db1120", "HBO" = "#652bb9", "Amazon Prime" = "#1a98ff")) + 
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.5, vjust = 2))
+
+ggplotly(ages)
+```
+
+**- Conclusiones**
+
+G: Apta para todos los públicos
+
+PG: Guía paterna sugerida
+
+PG-13: Mayores de 13 años
+
+R: Restringida, es decir, los menores de 17 años requieren acompañamiento de un adulto.
+
+NC-17: Mayores de 18
+
+
+
+Netflix tiene la mayor cantidad de películas exitosas de las tres plataformas con un total de de 47/100 y destaca en las categorías R y en PG-13. Además, es la única plataforma que contempla la categoría NC-17
+
+HBO tiene 29/100 peliculas mas exitosas, destacando en la categoría G.
+
+Amazon Prime con 24/100, destaca en la categoria PG
+
+
+### Quinta gráfica
+
+
+```{r, echo=FALSE}
+comedy_shows <- subset(all_shows, grepl("comedy", genres))
+
+comedy_shows <- comedy_shows %>% 
+  filter(age_certification != "")
+
+top_series <- comedy_shows %>% 
+  arrange(desc(imdb_score)) %>% 
+  slice(1:100)  # Filtrar las 100 series con mayor puntuación 
+```
+
+
+
+```{r, fig.width= 10, fig.height=5, warning=FALSE, echo=FALSE}
+ages_series <- ggplot(top_series, aes(x = age_certification, fill = platform)) +
+  geom_bar(position = "dodge", width = 0.7) +  # Utiliza position = "dodge" y ajusta el ancho de las barras
+  labs(title = "Series exitosas por clasificación por edades y plataforma",
+       x = "Clasificación por edades",
+       y = "Cantidad de series") +
+  scale_fill_manual(values = c("Netflix" = "#db1120", "HBO" = "#652bb9", "Amazon Prime" = "#1a98ff")) +
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.5, vjust = 2))
+
+ggplotly(ages_series)
+```
+
+**- Conclusiones**
+
+TV-14: Apta para mayores de 14 años
+
+TV-G: Apta para todos los públicos
+
+TV-MA: Solo para adultos
+
+TV-PG: Guía paterna sugerida
+
+TV-Y: Apta para niños pequeños
+
+TV-Y7: Apta para niños mayores de 7 años
+
+
+
+Netflix  tiene la mayor cantidad de series exitosas de las tres plataformas con un total de de 40/100 y destaca en la categoría TV-14. Además, es la única plataforma que contempla la categoría TV-Y y TV-Y7
+
+HBO tiene 36/100 peliculas mas exitosas, destacando de manera considerable en la categoría TV-MA y empatando con Netflix en la categoría TV-PG
+
+Amazon Prime con 24/100, destaca en la categoria TV-G
+
+
+### Sexta gráfica
+
+```{r, echo=FALSE}
+comedy_movies <- subset(all_movies, grepl("comedy", genres))
+comedy_movies <- comedy_movies %>% 
+  filter(age_certification != "")
+
+best_movies <- comedy_movies %>%
+  arrange(desc(imdb_score)) %>%
+  group_by(age_certification) %>%
+  slice(1)
+
+comedy_shows <- subset(all_shows, grepl("comedy", genres))
+comedy_shows <- comedy_shows %>% 
+  filter(age_certification != "")
+
+best_series <- comedy_shows %>%
+  arrange(desc(imdb_score)) %>%
+  group_by(age_certification) %>%
+  slice(1)
+
+best_movies_and_series <- bind_rows(best_movies, best_series)
+```
+
+
+
+
+```{r, fig.width= 10, fig.height=5, warning=FALSE, echo=FALSE}
+puntuacion <- best_movies_and_series %>% 
+  ggplot(aes(x = imdb_score, y = title, fill = type)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Puntuación de las mejores películas y series",
+       x = "Puntuación",
+       y = "Título") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 12, face = "bold", hjust = 0.5, vjust = 2),  # Ajusta las coordenadas del título
+        axis.text = element_text(size = 9),
+        legend.position = "top")  # Ajusta la posición de la leyenda
+
+ggplotly(puntuacion)
+```
+
+**- Conclusiones**
+
+se puede concluir que las series (mostradas en azul) generalmente tienen una puntuación más alta que las películas (mostradas en rojo). “Rick and Morty” y "Reply 1988" son las series con la puntuación más alta, mientras que “Chocolate” es la película mejor calificada, aunque su puntuación es menor que la mayoría de las series listadas.
+
+### Septima gráfica
+
+
+#### Qué palabras salen más en las descripciones del contenido "comedy".
+```{r, echo=FALSE}
+# Filtramos todo el contenido que sea de "comedy"
+comedy <- subset(all_platforms, grepl("comedy", genres))
+
+# Quitamos la palabras que no añadan información
+words_skipped <- c('the','a','are','to','of','and','in','his','her','that','on','from','is','she','with','an','as','he','at','one','him','not','this','become','get','first','most','best','But','true','all','way','make','while','him','back','was','whose','than','This','for','by','new','three','returns','have','comes','goes','film','falls','old','order','year','when','up','about','The','two','He','it','so','put','learn','will','take','real','sets','after','each','must','decides','they','but','be','out','has','other','only','finds','find','own','One','or','city','do','no','years','discover','Will','able','As','try','York','never','big','had','left','case','rise','run','star','fall','"A','their','who','"In','"When','"An','"The','-','-','over','save','son','When','many','To','A','were','can','what','still','does','may','set','off','time','its','His','part','across','road','leave','deep','cop','why','She','great','down','go','how','now','around','too','bad','far','hit','us','few','elite','into','takes','four','been','both','young','life','soon','lives','help','home','end','lost','high','also','very','living','gets','just','They','bond','day','In','New','ever','close','see','de','got','stay','director','made','trip','--','-','"As','"After','"Two','life.",','"This','father','meets','some','friend','wife','like','named','moves','away','tries','same','face','Her','win','last','past','members','you','join','turned','free','dark','civil','six','create','City','Los','lead','near','being',"he's",'it."','shares','learns','turn','if','live','land','With','once','tale','On','social','even','then','becomes','Jack','arrives','Not','serial','well','small','come','town','late','shares','start','car','At','entire','use','act','icon','step','based','man','girl','wants','behind','boy','stop','more','people','place','makes','village','next','due','rare','any','job','solve','call','want','life,','&',"it's",'them','before','world','which','until','group','himself','heart','follows','tells','meet','work','women','mother','much','chance','dreams','ends','your','deal','couple','local','bring','know','days','little','sstage','good','former','older','called','top','test','house','power','sees','look','between','through','begins','our','these','career','It','we','riffs','could','where','woman','men','every','known','themselves','there','begin','sent','long','seems','After','five','against','something','starts','things','along','truth','events','crew','human','within','during','While','upon','remote','sister','those','What','house,','night,','found','search','together','head','keep','inside','realize','herself','team','turns','another','battle','under','remote','discovers','something','encounter','story','anthology','beautiful','After','stand-up','stage','special','different','daughter','stories','everything','aired','decide','because','created','forced','trying',"doesn't",'life.','getting','However,','characters','personal','second','front','including','produced','always','features','going')
+
+# Concatenar las descripciones de las películas y series de cada plataforma en una sola cadena
+netflix_desc <- netflix %>%
+  subset(grepl("comedy", genres)) %>%
+  select(description)
+
+hbo_desc <- hbo %>%
+  subset(grepl("comedy", genres)) %>%
+  select(description)
+
+amazon_desc <- amazon %>%
+  subset(grepl("comedy", genres)) %>%
+  select(description)
+
+
+# Convertir las descripciones en vectores
+netflix_vec <- unlist(strsplit(paste(netflix_desc, collapse = " "), "\\s+"))
+hbo_vec <- unlist(strsplit(paste(hbo_desc, collapse = " "), "\\s+"))
+amazon_vec <- unlist(strsplit(paste(amazon_desc, collapse = " "), "\\s+"))
+
+
+# Calcular la frecuencia de cada palabra en cada plataforma
+netflix_freq <- data.frame(table(netflix_vec))
+hbo_freq <- data.frame(table(hbo_vec))
+amazon_freq <- data.frame(table(amazon_vec))
+
+
+# Ordenar las palabras por frecuencia descendente
+netflix_top_words <- netflix_freq %>% arrange(desc(Freq))
+netflix_top_words <- netflix_top_words %>%
+  filter(!(netflix_vec%in%words_skipped)) %>%
+  head(20)
+
+hbo_top_words <- hbo_freq %>% arrange(desc(Freq))
+hbo_top_words <- hbo_top_words %>%
+  filter(!(hbo_vec%in%words_skipped)) %>%
+  head(20)
+
+amazon_top_words <- amazon_freq %>% arrange(desc(Freq))
+amazon_top_words <- amazon_top_words %>%
+  filter(!(amazon_vec%in%words_skipped)) %>%
+  head(20)
+```
+
+
+
+#### Palabras más frecuentes en Netflix
+
+
+```{r, fig.width= 15, fig.height=5, warning=FALSE, echo=FALSE}
+wordcloud2(netflix_top_words, size = 0.5, minRotation = -pi/6, maxRotation = -pi/6, minSize = 10, rotateRatio = 1)
+```
+
+**- Conclusiones**
+
+Las palabras más frecuentes relacionadas con Netflix incluyen “love”, “family”, “friends” y “comedy”. Esto sugiere que los contenidos populares en Netflix a menudo tratan sobre relaciones, amistad, amor, familia y son de género comedia.
+
+#### Palabras más frecuentes en HBO
+
+```{r, fig.width= 15, fig.height=5, warning=FALSE, echo=FALSE}
+wordcloud2(hbo_top_words, size = 0.5, minRotation = -pi/6, maxRotation = -pi/6, minSize = 10, rotateRatio = 1)
+```
+
+**- Conclusiones**
+
+Las palabras más frecuentes relacionadas con Netflix incluyen “series”, “show”, “love” y “family”. Esto sugiere que los contenidos populares en Netflix a menudo tratan sobre comedia, la familia y el amor.
+
+#### Palabras más frecuentes en Amazon Prime
+
+
+```{r, fig.width= 15, fig.height=5, warning=FALSE, echo=FALSE}
+wordcloud2(amazon_top_words, size = 0.5, minRotation = -pi/6, maxRotation = -pi/6, minSize = 10, rotateRatio = 1)
+```
+
+**- Conclusiones**
+
+Las palabras más frecuentes asociadas con Amazon Prime están relacionadas principalmente con entretenimiento y relaciones personales. Palabras como “love”, “comedy”, “series”, “family” y "friends" son las más prominentes.
+
+
+### Octava gráfica
+
+```{r, fig.width= 10, fig.height=5, warning=FALSE, echo=FALSE}
+
+# Crear el gráfico
+grafico <- ggplot() +
+  geom_line(data = netflix_popularity_by_year, aes(x = release_year, y = avg_popularity, color = "Netflix"), linetype = "solid") +
+  geom_line(data = hbo_popularity_by_year, aes(x = release_year, y = avg_popularity, color = "HBO"), linetype = "solid") +
+  geom_line(data = amazon_popularity_by_year, aes(x = release_year, y = avg_popularity, color = "Amazon Prime"), linetype = "solid") +
+  scale_color_manual(values = c("Netflix" = "#db1120", "HBO" = "#652bb9", "Amazon Prime" = "#1a98ff")) +
+  labs(title = "Popularidad por Año en Diferentes Plataformas", x = "Año", y = "Popularidad") +
+  theme_minimal()
+
+ggplotly(grafico)
+
+```
+
+**- Conclusiones**
+
+Netflix y HBO: Ambas plataformas han experimentado un aumento gradual en popularidad a lo largo del tiempo. Los picos notables alrededor del año 2000 sugieren que hubo momentos de mayor interés en estas dos plataformas.
+
+Amazon Prime: A diferencia de Netflix y HBO, Amazon Prime muestra un patrón diferente. Su popularidad permanece baja hasta después del año 2020, momento en el cual se dispara verticalmente. Esto podría indicar un cambio significativo en la percepción y adopción de Amazon Prime en ese período.
+
+
+### Novena gráfica
+
+
+```{r, fig.width= 10, fig.height=5, warning=FALSE, echo=FALSE}
+# Gráfico de comparación de duración de películas por plataforma
+time <- comedy_movies %>%
+  ggplot(aes(x = platform, y = runtime, fill = platform)) +
+  geom_boxplot() +
+  labs(title = "Comparación de duración de películas por plataforma",
+       x = "Plataforma",
+       y = "Duración (minutos)",
+       fill = "Plataforma") +
+  scale_fill_manual(values = c("Netflix" = "#db1120", "HBO" = "#652bb9", "Amazon Prime" = "#1a98ff"))
+
+ggplotly(time)
+```
+
+**- Conclusiones**
+
+Se puede concluir que las películas en Amazon Prime tienden a tener una duración más corta en comparación con HBO y Netflix. HBO tiene una variabilidad más amplia en la duración de sus películas, mientras que Netflix tiene películas con una duración más consistente.
+
+
+### Décima gráfica
+
+
+
+```{r, fig.width= 10, fig.height=5, warning=FALSE, echo=FALSE}
+# Gráfico de comparación de duración de series por plataforma
+time <- comedy_series %>%
+  ggplot(aes(x = platform, y = runtime, fill = platform)) +
+  geom_boxplot() +
+  labs(title = "Comparación de duración de series por plataforma",
+       x = "Plataforma",
+       y = "Duración (minutos)",
+       fill = "Plataforma") +
+  scale_fill_manual(values = c("Netflix" = "#db1120", "HBO" = "#652bb9", "Amazon Prime" = "#1a98ff"))
+
+ggplotly(time)
+```
+
+**- Conclusiones**
+
+La mediana de duración de las series en Amazon Prime es de aproximadamente 50 minutos.
+La variabilidad en la duración es relativamente baja, ya que no hay muchos valores atípicos (outliers).
+En general, las series en Amazon Prime tienden a ser consistentes en cuanto a su duración.
+
+La mediana de duración de las series en HBO es un poco inferior, alrededor de 40 minutos.
+Aunque también hay pocos valores atípicos, la variabilidad es un poco mayor que en Amazon Prime.
+HBO ofrece una gama diversa de duraciones para sus series.
+
+Netflix tiene la mediana de duración más alta, cerca de 60 minutos.
+La variabilidad en la duración es significativamente mayor en Netflix. Hay varios valores atípicos que indican episodios particularmente largos.
+
+### Undécima gráfica
+
+```{r, echo=FALSE}
+# Filtrar películas de comedia
+comedy_series <- subset(all_shows, grepl("comedy", genres))
+
+comedy_series_for_each_initial <- comedy_series %>%
+  mutate(production_countries = str_remove_all(production_countries, "\\[|\\]")) %>%
+  separate_rows(production_countries, sep = ",\\s*") %>%
+  mutate(production_countries = str_remove_all(production_countries, "'\\s*"))
+
+# Crear un DataFrame de mapeo entre iniciales y nombres completos
+mapeo <- data.frame(production_countries = c("EG", "BE", "ES", "Lebanon", "KW", "MY", "CL", "SG", "IL", "AE", "IS", "UA", "JP", "PH", "GE", "PE", "NO", "PS", "GH", "TZ", "", "TN", "FI", "NP", "TW", "BD", "GB", "CA", "LK", "NG", "DK", "CM", "ID", "TH", "TR", "SE", "SY", "PL", "GR", "AT", "QA", "CH", "PT", "JO", "AF", "LU", "SA", "IO", "FO", "SU", "CZ", "MX", "GT", "NZ", "BR", "CO", "US", "RU", "CY", "IT", "BO", "NL", "VE", "DO", "YU", "LI", "FR", "AN", "LT", "IE", "HU", "HK", "KZ", "ZA", "CN", "FJ", "UG", "KR", "RS", "AR", "MA", "XX", "AQ", "VN", "IR", "PA", "AL", "LB", "PR", "MN", "SK", "IN", "AU", "CU", "DE", "UY", "LY", "AO", "BA", "BG", "CI", "CR", "EE", "ET", "GL", "KE", "KH", "LV", "MC", "MU", "PK", "RO", "PY", "SI", "SZ", "United States of America", "ZW"),
+                      Country = c("Egypt", "Belgium", "Spain", "Lebanon", "Kuwait", "Malaysia", "Chile", "Singapore", "Israel", "United Arab Emirates", "Iceland", "Ukraine", "Japan", "Philippines", "Georgia", "Peru", "Norway", "Palestine", "Ghana", "Tanzania", "", "Tunisia", "Finland", "Nepal", "Taiwan", "Bangladesh", "United Kingdom", "Canada", "Sri Lanka", "Nigeria", "Denmark", "Cameroon", "Indonesia", "Thailand", "Turkey", "Sweden", "Syria", "Poland", "Greece", "Austria", "Qatar", "Switzerland", "Portugal", "Jordan", "Afghanistan", "Luxembourg", "Saudi Arabia", "British Indian Ocean Territory", "Faroe Islands", "Soviet Union (no longer exists)", "Czech Republic", "Mexico", "Guatemala", "New Zealand", "Brazil", "Colombia", "United States", "Russia", "Cyprus", "Italy", "Bolivia", "Netherlands", "Venezuela", "Dominican Republic", "Yugoslavia (no longer exists)", "Liechtenstein", "France", "Netherlands Antilles (no longer exists)", "Lithuania", "Ireland", "Hungary", "Hong Kong", "Kazakhstan", "South Africa", "China", "Fiji", "Uganda", "South Korea", "Serbia", "Argentina", "Morocco", "Unknown country", "Antarctica", "Vietnam", "Iran", "Panama", "Albania", "Lebanon", "Puerto Rico", "Mongolia", "Slovakia", "India", "Australia", "Cuba", "Germany", "Uruguay", "Libya", "Angola", "Bosnia", "Bulgaria", "Côte d'Ivoire", "Costa Rica", "Estonia", "Ethiopia", "Greenland", "Kenya", "Cambodia", "Latvia", "Monaco", "Mauritius", "Pakistan", "Romania", "Paraguay", "Slovenia", "Eswatini", "United States", "Zimbabwe"))
+
+# Realizar el merge para obtener los nombres completos
+comedy_series_for_each_country <- merge(comedy_series_for_each_initial, mapeo, by = "production_countries", all.x = TRUE)
+
+# Crear un nuevo dataframe sin filas que tengan NA en la columna "temperatura"
+comedy_series_for_each_country <- comedy_series_for_each_country[!is.na(comedy_series_for_each_country$Country), ]
+paleta_colores <- rainbow(1000)
+```
+
+
+```{r, fig.width= 10, fig.height=5, warning=FALSE, echo=FALSE}
+fig <- plot_ly(comedy_series_for_each_country, 
+               x = ~imdb_score, 
+               y = ~tmdb_score, 
+               text = ~paste("Título:", title, "<br>", "Año:", release_year, "<br>", "Plataforma:", platform), 
+               frame = ~Country, 
+               hoverinfo = "text",
+               type = "scatter", 
+               mode = "markers", 
+               marker = list(size = 10, color = paleta_colores))
+
+fig <- fig %>% layout(
+  title = "<b>Relación entre valoración de series y el país de producción.<b>",
+  xaxis = list(title = "IMDb Score"),
+  yaxis = list(title = "TMDB Score"),
+  hoverlabel = list(bgcolor = "white"),
+  hovermode = "closest",
+  showlegend = F
+)
+
+fig
+```
+
+**- Conclusiones**
+
+Estados unidos tiene con diferencia mas puntuaciones
